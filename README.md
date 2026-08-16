@@ -132,16 +132,18 @@ than on XOR.
 
 | run | opt | activation | lr | decay | steps | train | dev |
 |---|---|---|---|---|---|---|---|
-| karpathy-200k | sgd | tanh | 0.1 | ×0.1 @ 50% | 200k | 2.1268 | 2.1698 |
-| karpathy-500k | sgd | tanh | 0.1 | ×0.1 @ 50% | 500k | 2.0703 | 2.1337 |
-| sgd, no decay | sgd | tanh | 0.1 | none | 500k | 2.2026 | 2.2742 |
-| sgd, no decay | sgd | tanh | 0.05 | none | 500k | 2.1269 | 2.1776 |
-| adam, no decay | adam | tanh | 0.01 | none | 500k | 2.3066 | 2.3230 |
-| adam, decay | adam | tanh | 0.01 | ×0.1 @ 50% | 500k | 2.1069 | 2.1459 |
-| blend-bs3 | sgd | blend | 0.1 | ×0.1 @ 50% | 500k | 2.0748 | 2.1251 |
-| blend-bs4 | sgd | blend | 0.1 | ×0.1 @ 50% | 500k | 2.0369 | 2.0877 |
-| blend-bs5 | sgd | blend | 0.1 | ×0.1 @ 50% | 500k | 2.0393 | 2.0956 |
-| tanh-bs4 | sgd | tanh | 0.1 | ×0.1 @ 50% | 500k | 2.0723 | 2.1356 |
+| karpathy-200k | sgd | tanh | 0.1 | ×0.1 @ 50% | 200k | 2.1268 | 2.1698 🟢 |
+| karpathy-500k | sgd | tanh | 0.1 | ×0.1 @ 50% | 500k | 2.0703 | 2.1337 🟢 |
+| sgd, no decay | sgd | tanh | 0.1 | none | 500k | 2.2026 | 2.2742 🔴 |
+| sgd, no decay | sgd | tanh | 0.05 | none | 500k | 2.1269 | 2.1776 🔴 |
+| adam, no decay | adam | tanh | 0.01 | none | 500k | 2.3066 | 2.3230 🔴 |
+| adam, decay | adam | tanh | 0.01 | ×0.1 @ 50% | 500k | 2.1069 | 2.1459 🟢 |
+| blend-bs3 | sgd | blend | 0.1 | ×0.1 @ 50% | 500k | 2.0748 | 2.1251 🟢 |
+| blend-bs4 | sgd | blend | 0.1 | ×0.1 @ 50% | 500k | 2.0369 | 2.0877 🟢 |
+| blend-bs5 | sgd | blend | 0.1 | ×0.1 @ 50% | 500k | 2.0393 | 2.0956 🟢 |
+| tanh-bs4 | sgd | tanh | 0.1 | ×0.1 @ 50% | 500k | 2.0723 | 2.1356 🟢 |
+
+🟢 dev at or below the video's 2.17; 🔴 above it.
 
 Unless stated: embedding dim 10, 200 hidden units, batch 32, block size 3, seed
 2147483647. All selection was on the dev set. Evaluated once on the held-out
@@ -149,6 +151,44 @@ test set at the end, the headline configuration gives 2.1320. The notebook's
 `karpathy-500k-test` row reproduces `karpathy-500k` exactly (same seed, same
 trajectory), and the three-seed comparison with paired differences is in the
 notebook.
+
+## Directions and future work
+
+Part 3 of the series is the natural next test for most of what this study left
+open. The initial dev loss of 25.1 (against a uniform baseline of 3.30) and the
+blend-only gain at block size 4 both point at the same suspect: the unscaled
+random initialisation. Three predictions I want to score against Part 3's
+diagnostics rather than retrofit: scaling the output layer at initialisation
+should bring the starting loss down to roughly 3.3 and remove the hockey-stick
+phase; the fraction of saturated tanh units at initialisation should be visibly
+higher at block size 4 than at 3, which would confirm the proposed mechanism
+for the interaction; and the schedule's dominance should shrink somewhat under
+proper initialisation, since part of what the high-rate phase was doing is
+escaping a bad starting point.
+
+The one experiment the study leaves genuinely open is whether the blend
+survives good initialisation. Its established role here is compensating for
+optimisation difficulty, so once initialisation (and later BatchNorm) removes
+that difficulty, I expect its convergence-speed edge to shrink toward zero. The
+open question is whether the smaller train/dev gap survives: that is the one
+effect that does not look optimisation-flavoured. Two cheap companions: a
+three-seed comparison at block size 4, since the 0.048 gap is currently
+single-seed, and the alpha distribution at block size 4, where a stronger ReLU
+lean would support the compensation story.
+
+On schedules, the designed-but-unrun experiment is decay timing: firing the
+decay at 25% of an 80k-step run should reach roughly the same loss at 40% of
+the compute. A more quantitative version would measure the width of the
+oscillation band as a function of learning rate and check that it scales with
+step size times gradient noise, turning "late-phase step size dominates" from
+an observation into a model.
+
+Finally, for completeness: hidden width, embedding dimension and batch size
+were never swept; block size 5 landing slightly worse than 4 is unexplained,
+and concatenating ever wider contexts is exactly what the series' Part 5
+hierarchy exists to fix; and I have not checked what a 0.05 loss difference
+buys in sample quality. Names from the 2.17 and 2.09 models side by side, same
+seed, would ground the metric in what the model actually produces.
 
 ## Running it
 python -m venv .venv && source .venv/bin/activate
