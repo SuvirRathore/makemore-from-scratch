@@ -17,7 +17,7 @@ sampled with `torch.multinomial`, evaluated by average negative log-likelihood
 Then as a neural net: one-hot inputs through a single 27×27 weight matrix and
 softmax, trained by gradient descent on the same loss. Over a couple of hundred
 steps its loss falls to the counting model's level, because the network can
-only rediscover the count matrix — the counting model is already the exact
+only rediscover the count matrix: the counting model is already the exact
 bigram MLE. That convergence is the point of building it both ways. Along the
 way, L2 regularisation and count smoothing turn out to be the same knob seen
 from two sides: both pull the model toward uniform.
@@ -30,89 +30,89 @@ log-spaced learning-rate sweep, step decay. The second half is the study below,
 run through a single `train_and_eval` harness: parameters rebuilt fresh per run
 from a seeded generator, evaluation under `no_grad`, and each run's exact
 configuration captured from `locals()` inside the function. Both design choices
-exist because I got burned without them — state leaking between runs through a
+exist because I got burned without them: state leaking between runs through a
 global parameter list, and recorded configurations drifting from what actually
 executed in a notebook.
 
 ## Beating Karpathy
 
-The video ends at a dev loss of 2.17. Reproducing its exact configuration —
-10-dimensional embeddings, 200 hidden units, batch 32, block size 3, SGD at 0.1
-decayed ×0.1 halfway — gives 2.1698 at 200k steps, so the baseline is pinned.
-From there I varied one thing at a time and measured what each tweak is worth.
-Full numbers are in the table below; the seed paragraph is the error bar for
-all of them.
+Baseline: the video ends at a dev loss of 2.17. Reproducing its exact
+configuration (10-dimensional embeddings, 200 hidden units, batch 32, block
+size 3, SGD at 0.1 decayed ×0.1 halfway) gives 2.1698 at 200k steps, so the
+baseline is pinned. From there I varied one thing at a time and measured what
+each tweak is worth. Full numbers are in the table below; the seed paragraph is
+the error bar for all of them.
 
-Learning-rate schedule is worth the most. At a constant 0.1 the model stops
-improving early and oscillates: dev loss wanders in a band roughly 0.1 wide —
-wider than all the improvement that remains — and finishes at 2.2742. The same
-run with the halfway decay drops ~0.14 in a single evaluation window and
-finishes at 2.1337. Simply halving the constant rate, with no schedule at all,
-recovers most of that (2.1776). Late-phase step size dominates this benchmark;
-everything else is second-order next to it.
+Learning-rate schedule: worth the most. At a constant 0.1 the model stops
+improving early and oscillates, with dev loss wandering in a band roughly 0.1
+wide (wider than all the improvement that remains) before finishing at 2.2742.
+The same run with the halfway decay drops ~0.14 in a single evaluation window
+and finishes at 2.1337. Simply halving the constant rate, with no schedule at
+all, recovers most of that (2.1776). Late-phase step size dominates this
+benchmark; everything else is second-order next to it.
 
 ![dev loss, decay vs no decay](figs/dev_schedule.png)
 
-Iterations are the tweak that actually beats 2.17 like for like. The video's
+Iterations: the tweak that actually beats 2.17 like for like. The video's
 configuration at 500k steps instead of 200k gives 2.1337, nothing else changed.
 It's a compute result rather than an insight, and the schedule finding caps it:
 after the decay fires, the entire second half of training is worth about 0.01,
 so pushing past 500k buys almost nothing.
 
-The optimiser turned out to be a lesson in experimental controls rather than a
-lever. My first comparison had Adam plateauing ~0.18 above SGD, and I nearly
-reported that; the comparison was broken, because the SGD runs had a decay
-schedule and the Adam runs didn't. One control run closed the gap: 2.3230
-without decay, 2.1459 with, against SGD's 2.1337. The mechanism is that Adam
-removes SGD's built-in annealing — SGD's step is lr·g and shrinks as gradients
-shrink, while Adam's step is lr·m̂/√v̂ ≈ ±lr regardless, so without a schedule
-it orbits the minimum at a radius set by lr. What Adam does buy is speed: it
-crosses loss 2.4 in 17.5k steps against SGD's 30.5k, at about 1.8× the cost per
-step. Speed, not a lower floor.
+Optimiser: a lesson in experimental controls rather than a lever. My first
+comparison had Adam plateauing ~0.18 above SGD, and I nearly reported that; the
+comparison was broken, because the SGD runs had a decay schedule and the Adam
+runs didn't. One control run closed the gap: 2.3230 without decay, 2.1459 with,
+against SGD's 2.1337. The mechanism is that Adam removes SGD's built-in
+annealing: SGD's step is lr·g and shrinks as gradients shrink, while Adam's
+step is lr·m̂/√v̂ ≈ ±lr regardless, so without a schedule it orbits the minimum
+at a radius set by lr. What Adam does buy is speed: it crosses loss 2.4 in
+17.5k steps against SGD's 30.5k, at about 1.8× the cost per step. Speed, not a
+lower floor.
 
 ![dev loss, adam with and without decay](figs/dev_adam.png)
 
-Seeds are not a tweak, but they set the error bar on every claim above. The
-same tanh configuration on seeds 0, 1 and 2 spans 2.1539–2.1677 — a spread of
-0.0138. Any improvement smaller than that is noise, and this retired one of my
-own results: a single-seed comparison had the learnable blend beating tanh by
-0.009, but across three paired seeds the differences flip sign (+0.003, −0.007,
-−0.009) and the means favour tanh (2.1603 vs 2.1648). The original "win" was
-one unlucky tanh seed. A lucky seed would also "beat 2.17" by pure selection,
-which is why seed is the one knob I refuse to turn.
+Seeds: not a tweak, but the error bar on every claim above. The same tanh
+configuration on seeds 0, 1 and 2 spans 2.1539–2.1677, a spread of 0.0138. Any
+improvement smaller than that is noise, and this retired one of my own results:
+a single-seed comparison had the learnable blend beating tanh by 0.009, but
+across three paired seeds the differences flip sign (+0.003, −0.007, −0.009)
+and the means favour tanh (2.1603 vs 2.1648). The original "win" was one
+unlucky tanh seed. A lucky seed would also "beat 2.17" by pure selection, which
+is why seed is the one knob I refuse to turn.
 
-The learnable per-neuron activation blend — each hidden neuron trains a
-parameter α, applied as sigmoid(α)·tanh + (1−sigmoid(α))·relu, carried over
-from my micrograd experiments — therefore does not improve final loss at the
-video's block size. What survives across every seed: it reaches loss 2.4 in
-roughly half the steps, and its train/dev gap is consistently smaller (~0.024
-vs ~0.039). Its large advantage exists before the decay (~0.14) and collapses
-after (~0.01), so the blend compensates for a too-high learning rate rather
-than adding capacity — consistent with the schedule being the dominant factor.
-That verdict is specific to block size 3, as the next result shows.
+Learnable per-neuron activation: each hidden neuron trains a parameter α,
+applied as sigmoid(α)·tanh + (1−sigmoid(α))·relu, carried over from my
+micrograd experiments. At the video's block size it does not improve final
+loss. What survives across every seed: it reaches loss 2.4 in roughly half the
+steps, and its train/dev gap is consistently smaller (~0.024 vs ~0.039). Its
+large advantage exists before the decay (~0.14) and collapses after (~0.01), so
+the blend compensates for a too-high learning rate rather than adding capacity,
+consistent with the schedule being the dominant factor. That verdict is
+specific to block size 3, as the next result shows.
 
-Block size is the biggest number, and it produced the one genuine surprise.
-Extending the context from 3 to 4 characters with the blend gives 2.0877 — but
-the control run with tanh at block size 4 gives 2.1356, no better than tanh at
-block size 3. At these settings the wider context is only usable with the
-blend: the gain is a joint effect, not attributable to the context window
-alone. A likely mechanism is optimisation rather than capacity — block size 4
-means a wider input layer under the same unscaled initialisation, which is
-harder on a saturating activation, and compensating for optimisation difficulty
-is exactly what the blend was shown to do above. That is a single-seed
-comparison, though the 0.048 margin is three times the measured seed spread.
-Either way it isn't a like-for-like win over 2.17: conditioning on more context
-changes the attainable floor, so it's a different problem, not a better
-solution to the same one.
+Block size: the biggest number, and the one genuine surprise. Extending the
+context from 3 to 4 characters with the blend gives 2.0877, but the control run
+with tanh at block size 4 gives 2.1356, no better than tanh at block size 3. At
+these settings the wider context is only usable with the blend: the gain is a
+joint effect, not attributable to the context window alone. A likely mechanism
+is optimisation rather than capacity: block size 4 means a wider input layer
+under the same unscaled initialisation, which is harder on a saturating
+activation, and compensating for optimisation difficulty is exactly what the
+blend was shown to do above. That is a single-seed comparison, though the 0.048
+margin is three times the measured seed spread. Either way it isn't a
+like-for-like win over 2.17: conditioning on more context changes the
+attainable floor, so it's a different problem, not a better solution to the
+same one.
 
 ![all runs, smoothed training loss](figs/train_overlay.png)
 
-So, ranked: the learning-rate schedule matters most and costs nothing;
-iterations reliably convert compute into loss until the decay caps them; block
-size buys the most but changes the question, and at these settings only pays
-with the blend; the optimiser changes speed, not the destination, once both are
-scheduled; the activation blend changes the route — faster early, better
-generalisation gap — but not the destination at block size 3; and seeds are the
+Ranked: the learning-rate schedule matters most and costs nothing; iterations
+reliably convert compute into loss until the decay caps them; block size buys
+the most but changes the question, and at these settings only pays with the
+blend; the optimiser changes speed, not the destination, once both are
+scheduled; the activation blend changes the route (faster early, better
+generalisation gap) but not the destination at block size 3; and seeds are the
 measurement noise everything above has to clear.
 
 ## Where the blend parameters end up
@@ -124,8 +124,8 @@ training, 49% of neurons sit below 0.3 and 35% above 0.7, with the middle
 emptied to under a quarter of its initial occupancy: given the freedom, neurons
 commit to one activation rather than averaging. This replicates, at 200 neurons
 on a language model, the bimodality I found on 8-neuron XOR nets in the
-micrograd work. The lean toward ReLU from those experiments also appears — 49%
-in the ReLU-dominant tail against 35% in the tanh tail — though more moderately
+micrograd work. The lean toward ReLU from those experiments also appears (49%
+in the ReLU-dominant tail against 35% in the tanh tail), though more moderately
 than on XOR.
 
 ## Results
@@ -134,9 +134,9 @@ than on XOR.
 |---|---|---|---|---|---|---|---|
 | karpathy-200k | sgd | tanh | 0.1 | ×0.1 @ 50% | 200k | 2.1268 | 2.1698 |
 | karpathy-500k | sgd | tanh | 0.1 | ×0.1 @ 50% | 500k | 2.0703 | 2.1337 |
-| sgd, no decay | sgd | tanh | 0.1 | — | 500k | 2.2026 | 2.2742 |
-| sgd, no decay | sgd | tanh | 0.05 | — | 500k | 2.1269 | 2.1776 |
-| adam, no decay | adam | tanh | 0.01 | — | 500k | 2.3066 | 2.3230 |
+| sgd, no decay | sgd | tanh | 0.1 | none | 500k | 2.2026 | 2.2742 |
+| sgd, no decay | sgd | tanh | 0.05 | none | 500k | 2.1269 | 2.1776 |
+| adam, no decay | adam | tanh | 0.01 | none | 500k | 2.3066 | 2.3230 |
 | adam, decay | adam | tanh | 0.01 | ×0.1 @ 50% | 500k | 2.1069 | 2.1459 |
 | blend-bs3 | sgd | blend | 0.1 | ×0.1 @ 50% | 500k | 2.0748 | 2.1251 |
 | blend-bs4 | sgd | blend | 0.1 | ×0.1 @ 50% | 500k | 2.0369 | 2.0877 |
@@ -146,8 +146,8 @@ than on XOR.
 Unless stated: embedding dim 10, 200 hidden units, batch 32, block size 3, seed
 2147483647. All selection was on the dev set. Evaluated once on the held-out
 test set at the end, the headline configuration gives 2.1320. The notebook's
-`karpathy-500k-test` row reproduces `karpathy-500k` exactly — same seed, same
-trajectory — and the three-seed comparison with paired differences is in the
+`karpathy-500k-test` row reproduces `karpathy-500k` exactly (same seed, same
+trajectory), and the three-seed comparison with paired differences is in the
 notebook.
 
 ## Running it
