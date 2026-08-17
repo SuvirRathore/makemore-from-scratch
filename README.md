@@ -132,18 +132,22 @@ than on XOR.
 
 | run | opt | activation | lr | decay | steps | train | dev |
 |---|---|---|---|---|---|---|---|
-| karpathy-200k | sgd | tanh | 0.1 | ×0.1 @ 50% | 200k | 2.1268 | 2.1698 🟢 |
-| karpathy-500k | sgd | tanh | 0.1 | ×0.1 @ 50% | 500k | 2.0703 | 2.1337 🟢 |
-| sgd, no decay | sgd | tanh | 0.1 | none | 500k | 2.2026 | 2.2742 🔴 |
-| sgd, no decay | sgd | tanh | 0.05 | none | 500k | 2.1269 | 2.1776 🔴 |
-| adam, no decay | adam | tanh | 0.01 | none | 500k | 2.3066 | 2.3230 🔴 |
-| adam, decay | adam | tanh | 0.01 | ×0.1 @ 50% | 500k | 2.1069 | 2.1459 🟢 |
-| blend-bs3 | sgd | blend | 0.1 | ×0.1 @ 50% | 500k | 2.0748 | 2.1251 🟢 |
-| blend-bs4 | sgd | blend | 0.1 | ×0.1 @ 50% | 500k | 2.0369 | 2.0877 🟢 |
-| blend-bs5 | sgd | blend | 0.1 | ×0.1 @ 50% | 500k | 2.0393 | 2.0956 🟢 |
-| tanh-bs4 | sgd | tanh | 0.1 | ×0.1 @ 50% | 500k | 2.0723 | 2.1356 🟢 |
+| karpathy-200k | sgd | tanh | 0.1 | ×0.1 @ 50% | 200k | 2.1268 | 2.1698 🟠 🟠 |
+| karpathy-500k | sgd | tanh | 0.1 | ×0.1 @ 50% | 500k | 2.0703 | 2.1337 🟢 🟠 |
+| sgd, no decay | sgd | tanh | 0.1 | none | 500k | 2.2026 | 2.2742 🔴 🔴 |
+| sgd, no decay | sgd | tanh | 0.05 | none | 500k | 2.1269 | 2.1776 🟠 🔴 |
+| adam, no decay | adam | tanh | 0.01 | none | 500k | 2.3066 | 2.3230 🔴 🔴 |
+| adam, decay | adam | tanh | 0.01 | ×0.1 @ 50% | 500k | 2.1069 | 2.1459 🟢 🟠 |
+| blend-bs3 | sgd | blend | 0.1 | ×0.1 @ 50% | 500k | 2.0748 | 2.1251 🟢 🟠 |
+| blend-bs4 | sgd | blend | 0.1 | ×0.1 @ 50% | 500k | 2.0369 | 2.0877 🟢 🟢 |
+| blend-bs5 | sgd | blend | 0.1 | ×0.1 @ 50% | 500k | 2.0393 | 2.0956 🟢 🟢 |
+| tanh-bs4 | sgd | tanh | 0.1 | ×0.1 @ 50% | 500k | 2.0723 | 2.1356 🟢 🟠 |
 
-🟢 dev at or below the video's 2.17; 🔴 above it.
+Two markers per dev result, both using the measured seed spread (0.0138) as
+the noise band. First: against the video's 2.17 (🟢 better by more than the
+band, 🟠 within it, 🔴 worse by more). Second: the same comparison against the
+reproduced baseline at the same iteration count (2.1698 at 200k, 2.1337 at
+500k), which removes the extra-compute advantage.
 
 Unless stated: embedding dim 10, 200 hidden units, batch 32, block size 3, seed
 2147483647. All selection was on the dev set. Evaluated once on the held-out
@@ -198,5 +202,4 @@ jupyter notebook
 minutes on an M-series CPU and regenerates every number and figure above from
 fixed seeds.
 
-Data is `names.txt` from the original makemore repository. Parts of the harness
-and this writeup were developed with LLM assistance. MIT license.
+Data is `names.txt` from the original makemore repository. MIT license.
