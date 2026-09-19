@@ -97,13 +97,13 @@ There are only three seeds per setting. The reported standard error describes se
 Full values, configurations and observations are in the [pilot report](results/initialization-pilot/README.md), [protocol](results/initialization-pilot/protocol.json) and [machine-readable summary](results/initialization-pilot/summary.json).
 
 <details>
-<summary>Dev curves by updates and elapsed time</summary>
+<summary>Training curves: tanh versus blend</summary>
 
-![Dev loss versus completed updates](results/initialization-pilot/dev_by_updates.png)
+![Tanh and blend in four panels, split by initialisation and context length](results/initialization-pilot/dev_by_updates.png)
 
-![Dev loss versus elapsed time](results/initialization-pilot/dev_by_time.png)
+Each panel compares two activations. Lines show the mean across three seeds; shading shows their observed range, not a confidence interval. The dotted line marks learning-rate decay. The plot starts at the first post-update evaluation (1,000 updates), so the large initial losses do not flatten the training curves. The two initialisations use different vertical scales, shared across context lengths.
 
-Elapsed time is specific to the recorded CPU environment. Compare common targets and evaluation cadences; a method requiring fewer updates need not be faster in seconds.
+[Per-seed timing curves](results/initialization-pilot/dev_by_time.png) are available separately. They use the recorded timestamps, including dev evaluation; elapsed time is specific to this CPU environment.
 
 </details>
 

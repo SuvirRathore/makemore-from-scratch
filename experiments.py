@@ -140,22 +140,110 @@ def write_report(directory: Path, results: dict[str, dict], title: str) -> None:
     (directory / "README.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def plot_dev_curves(directory: Path, results: dict[str, dict]) -> None:
+    """Separate protocols and zoom past step zero without changing saved data."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    groups = {}
+    for result in results.values():
+        config = result["config"].copy()
+        config.pop("seed")
+        config.pop("activation")
+        batch_seed = config.pop("batch_seed")
+        config["batch_seed_policy"] = "same_as_model_seed" if batch_seed is None else batch_seed
+        key = digest({"config": config, "split_id": result["split_id"]})
+        group = groups.setdefault(key, {"config": config, "runs": []})
+        group["runs"].append(result)
+    panels = sorted(groups.values(), key=lambda g: (
+        g["config"]["initialization"] != "unscaled", g["config"]["block_size"],
+        json.dumps(g["config"], sort_keys=True)))
+    if not panels:
+        return
+
+    # Use a common scale within each initialisation, including every post-update
+    # seed value. Step-zero outliers remain in the JSON and are explicitly excluded
+    # from this zoom; no smoothing or selectively chosen seeds are used.
+    limits = {}
+    for group in panels:
+        init = group["config"]["initialization"]
+        values = [r["dev_nll"] for run in group["runs"] for r in run["history"] if r["step"] > 0]
+        if not values:
+            raise ValueError("Dev curves require at least one post-update evaluation")
+        low, high = limits.get(init, (float("inf"), -float("inf")))
+        limits[init] = min(low, min(values)), max(high, max(values))
+
+    columns = min(2, len(panels))
+    rows = math.ceil(len(panels) / columns)
+    colors = {"tanh": "#176B91", "blend": "#C66A20"}
+    styles = {"tanh": "-", "blend": "--"}
+    varying = [k for k in panels[0]["config"] if k not in ("initialization", "block_size")
+               and len({json.dumps(g["config"][k], sort_keys=True) for g in panels}) > 1]
+    for timed, filename in ((False, "dev_by_updates.png"), (True, "dev_by_time.png")):
+        fig, axes = plt.subplots(rows, columns, figsize=(6.1 * columns, 3.5 * rows + 1.1),
+                                 squeeze=False)
+        for ax, group in zip(axes.flat, panels):
+            config = group["config"]
+            title = f"{config['initialization'].capitalize()} initialisation | Context {config['block_size']}"
+            if varying:
+                title += "\n" + ", ".join(f"{k}={config[k]}" for k in varying)
+            ax.set_title(title, loc="left", fontsize=11, fontweight="bold", pad=10)
+            for activation in sorted({r["config"]["activation"] for r in group["runs"]},
+                                     key=lambda a: (a != "tanh", a)):
+                runs = sorted([r for r in group["runs"] if r["config"]["activation"] == activation],
+                              key=lambda r: r["config"]["seed"])
+                histories = [[r for r in run["history"] if r["step"] > 0] for run in runs]
+                color = colors.get(activation, "#555555")
+                style = styles.get(activation, "-")
+                label = f"{activation.capitalize()} (n={len(runs)})"
+                if timed:
+                    # Actual measured timestamps differ across seeds. Keep each
+                    # seed visible; do not interpolate or average these traces.
+                    for i, history in enumerate(histories):
+                        ax.plot([r["seconds"] for r in history], [r["dev_nll"] for r in history],
+                                color=color, linestyle=style, alpha=.65, linewidth=1.6,
+                                label=label if i == 0 else None)
+                else:
+                    steps = [r["step"] for r in histories[0]]
+                    if any([r["step"] for r in h] != steps for h in histories[1:]):
+                        raise ValueError("Seed averages require identical evaluation steps")
+                    x = np.asarray(steps) / 1000
+                    y = np.asarray([[r["dev_nll"] for r in h] for h in histories])
+                    ax.fill_between(x, y.min(axis=0), y.max(axis=0), color=color, alpha=.13,
+                                    linewidth=0)
+                    ax.plot(x, y.mean(axis=0), color=color, linestyle=style, linewidth=2.2,
+                            marker="o", markersize=3, label=label)
+            if not timed and config["decay_step"] is not None:
+                ax.axvline(config["decay_step"] / 1000, color="#777777", linestyle=":",
+                           linewidth=1.2, label="LR decay", zorder=0)
+            low, high = limits[config["initialization"]]
+            pad = max((high - low) * .07, .005)
+            ax.set_ylim(low - pad, high + pad)
+            ax.set_xlabel("Elapsed seconds" if timed else "Completed updates (thousands)")
+            ax.set_ylabel("Dev NLL (nats per character)")
+            ax.grid(axis="y", alpha=.18)
+            ax.spines[["top", "right"]].set_visible(False)
+            ax.legend(frameon=False, fontsize=9, loc="upper right")
+        for ax in list(axes.flat)[len(panels):]:
+            ax.set_visible(False)
+        fig.suptitle("Dev loss by elapsed time" if timed else "Tanh and blend during training",
+                     fontsize=16, fontweight="bold", x=.06, ha="left", y=.98)
+        note = ("Each line is one seed at its measured timestamps; times include dev evaluations."
+                if timed else "Lines: seed means. Shading: observed seed range, not a confidence interval.")
+        note += "\nZoom starts after step zero. Shared y-scale within each initialisation; full histories remain in JSON."
+        fig.text(.06, .025, note, fontsize=9, color="#444444", linespacing=1.6)
+        fig.tight_layout(rect=(0, .09, 1, .95), h_pad=2, w_pad=2)
+        fig.savefig(directory / filename, dpi=160, facecolor="white")
+        plt.close(fig)
+
+
 def plot_results(directory: Path, results: dict[str, dict]) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    for xkey, xlabel, filename in (("step", "Completed updates", "dev_by_updates.png"),
-                                   ("seconds", "Elapsed seconds (includes dev evaluation)", "dev_by_time.png")):
-        fig, ax = plt.subplots(figsize=(9, 5))
-        for name, result in results.items():
-            rows = result["history"]
-            ax.plot([r[xkey] for r in rows], [r["dev_nll"] for r in rows], label=name)
-        ax.set(xlabel=xlabel, ylabel="Dev NLL (nats per next character)")
-        ax.grid(alpha=.2)
-        ax.legend(fontsize=7)
-        fig.tight_layout()
-        fig.savefig(directory / filename, dpi=140)
-        plt.close(fig)
+    plot_dev_curves(directory, results)
     pairs = paired_summaries(results)
     if pairs:
         fig, ax = plt.subplots(figsize=(8, 4))
