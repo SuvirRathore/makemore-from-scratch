@@ -1,0 +1,162 @@
+{
+  "source_commit": "c394e780e56b1cf76ae48f4ceb26abf398fa1c36",
+  "protocol": "legacy record split; not grouped by spelling",
+  "source": "original mlp.ipynb saved outputs; not rerun",
+  "rows": [
+    {
+      "name": "karpathy-200k",
+      "train_nll": 2.1268,
+      "dev_nll": 2.1698,
+      "seconds": 25.2,
+      "training_threshold_window_start": 30500,
+      "precision": "saved four-decimal outputs"
+    },
+    {
+      "name": "karpathy-500k",
+      "train_nll": 2.0703,
+      "dev_nll": 2.1337,
+      "seconds": 61.4,
+      "training_threshold_window_start": 30500,
+      "precision": "saved four-decimal outputs"
+    },
+    {
+      "name": "sgd-nodecay-lr.1",
+      "train_nll": 2.2026,
+      "dev_nll": 2.2742,
+      "seconds": 61.0,
+      "training_threshold_window_start": 30500,
+      "precision": "saved four-decimal outputs"
+    },
+    {
+      "name": "sgd-nodecay-lr.05",
+      "train_nll": 2.1269,
+      "dev_nll": 2.1776,
+      "seconds": 60.5,
+      "training_threshold_window_start": 26500,
+      "precision": "saved four-decimal outputs"
+    },
+    {
+      "name": "adam-nodecay",
+      "train_nll": 2.3066,
+      "dev_nll": 2.323,
+      "seconds": 112.1,
+      "training_threshold_window_start": 17500,
+      "precision": "saved four-decimal outputs"
+    },
+    {
+      "name": "adam-decay",
+      "train_nll": 2.1069,
+      "dev_nll": 2.1459,
+      "seconds": 111.8,
+      "training_threshold_window_start": 17500,
+      "precision": "saved four-decimal outputs"
+    },
+    {
+      "name": "blend-bs3",
+      "train_nll": 2.0748,
+      "dev_nll": 2.1251,
+      "seconds": 77.7,
+      "training_threshold_window_start": 19500,
+      "precision": "saved four-decimal outputs"
+    },
+    {
+      "name": "blend-bs4",
+      "train_nll": 2.0369,
+      "dev_nll": 2.0877,
+      "seconds": 78.6,
+      "training_threshold_window_start": 16500,
+      "precision": "saved four-decimal outputs"
+    },
+    {
+      "name": "blend-bs5",
+      "train_nll": 2.0393,
+      "dev_nll": 2.0956,
+      "seconds": 80.9,
+      "training_threshold_window_start": 16000,
+      "precision": "saved four-decimal outputs"
+    },
+    {
+      "name": "tanh-bs4",
+      "train_nll": 2.0723,
+      "dev_nll": 2.1356,
+      "seconds": 62.1,
+      "training_threshold_window_start": 43000,
+      "precision": "saved four-decimal outputs"
+    },
+    {
+      "name": "blend-s0",
+      "train_nll": 2.1443,
+      "dev_nll": 2.1646,
+      "seconds": 33.3,
+      "training_threshold_window_start": 13000,
+      "precision": "saved four-decimal outputs"
+    },
+    {
+      "name": "tanh-s0",
+      "train_nll": 2.136,
+      "dev_nll": 2.1677,
+      "seconds": 24.6,
+      "training_threshold_window_start": 32500,
+      "precision": "saved four-decimal outputs"
+    },
+    {
+      "name": "blend-s1",
+      "train_nll": 2.137,
+      "dev_nll": 2.1612,
+      "seconds": 31.8,
+      "training_threshold_window_start": 15500,
+      "precision": "saved four-decimal outputs"
+    },
+    {
+      "name": "tanh-s1",
+      "train_nll": 2.1088,
+      "dev_nll": 2.1539,
+      "seconds": 24.5,
+      "training_threshold_window_start": 21500,
+      "precision": "saved four-decimal outputs"
+    },
+    {
+      "name": "blend-s2",
+      "train_nll": 2.1414,
+      "dev_nll": 2.1685,
+      "seconds": 31.5,
+      "training_threshold_window_start": 15000,
+      "precision": "saved four-decimal outputs"
+    },
+    {
+      "name": "tanh-s2",
+      "train_nll": 2.1201,
+      "dev_nll": 2.1593,
+      "seconds": 24.5,
+      "training_threshold_window_start": 30500,
+      "precision": "saved four-decimal outputs"
+    },
+    {
+      "name": "karpathy-500k-test",
+      "train_nll": 2.0703,
+      "dev_nll": 2.1337,
+      "seconds": 60.3,
+      "training_threshold_window_start": 30500,
+      "precision": "saved four-decimal outputs"
+    }
+  ],
+  "test_result": {
+    "model": "karpathy-500k-test",
+    "context": 3,
+    "activation": "tanh",
+    "test_nll": 2.1320409774780273
+  },
+  "seed_differences": {
+    "definition": "tanh minus blend",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "recorded_differences": [
+      0.0031,
+      -0.0074,
+      -0.0092
+    ]
+  }
+}
