@@ -26,7 +26,7 @@ The [historical study](docs/legacy-study.md) records the earlier schedule confou
 | [experiments.py](experiments.py) | Freezes study configurations before execution, runs comparisons, saves reports and plots, and performs explicitly requested final test evaluation. |
 | [tests/test_makemore.py](tests/test_makemore.py) | Numerical and protocol checks covering the errors that would invalidate these comparisons. |
 
-The default MLP uses 10-dimensional character embeddings and a 200-unit hidden layer. Three-character tanh has 11,897 parameters; the blend adds 200. Four-character tanh has 13,897 parameters. Each blended neuron learns $f(z)=\alpha\tanh(z)+(1-\alpha)\operatorname{ReLU}(z)$ with $\alpha=\operatorname{sigmoid}(a)$, training $a$ alongside the weights.
+The default MLP uses 10-dimensional character embeddings and a 200-unit hidden layer. Three-character tanh has 11,897 parameters; the blend adds 200. Four-character tanh has 13,897 parameters. Each blended neuron learns $f(z)=\alpha\tanh(z)+(1-\alpha)\max(0,z)$ with $\alpha=1/(1+e^{-a})$, training $a$ alongside the weights.
 
 The bigram notebook distinguishes three objects: unsmoothed count probabilities are the MLE; additive smoothing changes that estimator; L2 regularisation changes the neural optimisation objective. Count smoothing and penalising logits are not mathematically equivalent. Neural data NLL and its regularisation penalty are reported separately.
 
