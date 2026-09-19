@@ -43,7 +43,7 @@ The experiment harness grew out of two notebook mistakes. A global parameter lis
 | --- | --- |
 | [bigram.ipynb](bigram.ipynb) | Builds transition counts, explains the MLE and smoothing, trains neural logits, separates NLL from regularisation, and generates samples. |
 | [mlp.ipynb](mlp.ipynb) | Explains the MLP forward pass and optimiser, inspects initialisation, loads or reruns the pilot, and examines paired outcomes and samples. |
-| [makemore.py](makemore.py) | Shared data, model, handwritten optimiser, training, numerical evaluation, diagnostics and checkpoint code. |
+| [makemore.py](makemore.py) | Training and checkpoint code for the command-line runner; tests check agreement with the explicit notebook implementations. |
 | [experiments.py](experiments.py) | Freezes study configurations before execution, runs comparisons, saves reports and plots, and performs explicitly requested final test evaluation. |
 | [tests/test_makemore.py](tests/test_makemore.py) | Numerical and protocol checks covering the errors that would invalidate these comparisons. |
 
@@ -115,7 +115,7 @@ The original study showed why controls matter. The code and documentation now al
 - Optional activation parameters cannot change the minibatch RNG sequence.
 - Absolute decay steps and actual completed-update counts are recorded.
 - Per-seed differences replace significance labels based on a three-seed range.
-- Shared code replaces duplicated notebook training functions, and results survive outside notebook memory.
+- The notebooks write out the model and training loop directly; the command-line runner also saves results outside notebook memory.
 - Historical test NLL 2.1320 is correctly attributed to the three-character tanh baseline, not the four-character blend with dev NLL 2.0877.
 
 The [historical report](docs/legacy-study.md) retains the original figures and scores. They are not directly comparable to current-protocol losses.
