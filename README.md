@@ -99,7 +99,7 @@ Full values, configurations and observations are in the [pilot report](results/i
 <details>
 <summary>Training curves: tanh versus blend</summary>
 
-![Tanh and blend in four panels, split by initialisation and context length](results/initialization-pilot/dev_by_updates.png)
+![Tanh versus blend, separated by initialisation and context](results/initialization-pilot/dev_by_updates_panels.png)
 
 Each panel compares two activations. Lines show the mean across three seeds; shading shows their observed range, not a confidence interval. The dotted line marks learning-rate decay. The plot starts at the first post-update evaluation (1,000 updates), so the large initial losses do not flatten the training curves. The two initialisations use different vertical scales, shared across context lengths.
 
