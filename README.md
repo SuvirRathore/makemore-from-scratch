@@ -2,7 +2,7 @@
 
 **Character-level language models, explicit training code and experiments that test why a result improves.**
 
-I implemented count-based and neural bigram models and a character MLP following [Karpathy's makemore series](https://karpathy.ai/zero-to-hero.html), then investigated optimisation schedules, context length and learned activation mixtures. The project develops a model, checks a baseline, tests proposed improvements, and revises explanations when controls or additional seeds change the result.
+I implemented count-based and neural bigram models and a character MLP following [Karpathy’s makemore series](https://karpathy.ai/zero-to-hero.html), then experimented with learning-rate schedules, optimisers, context length and a learnable activation carried over from my micrograd project. Two apparent improvements changed how I approached the experiments: an Adam–SGD comparison turned out to mix different learning-rate schedules, and a small activation gain did not hold up in additional seed comparisons.
 
 PyTorch supplies automatic differentiation. The models, parameter initialisation and SGD/Adam updates are written explicitly. Implementing autodiff itself was the focus of my earlier [micrograd project](https://github.com/SuvirRathore/micrograd-from-scratch).
 
@@ -14,9 +14,30 @@ PyTorch supplies automatic differentiation. The models, parameter initialisation
 - **An executed initialisation pilot:** 24 runs covering two contexts, two activations, two initialisations and three matched seeds. At this short budget, the blend's advantage under unscaled initialisation reverses after scaling.
 - **Inspectable evidence:** saved protocols, split membership, complete dev histories, diagnostics, per-seed differences, timings and model checkpoints. Test evaluation is a separate explicit action.
 
-The [historical study](docs/legacy-study.md) records the earlier schedule confound and seed-dependent activation result. Its old split and scores are preserved with their limitations. Current results use the corrected protocol below.
+## Experiments That Changed My Mind
+
+These observations come from the original experiments. Their scores use the earlier data split; the [original experiment notes](docs/legacy-study.md) retain the configurations and explain the limitations. The current split and follow-up results are described below.
+
+### The Missing Control in My Adam Comparison
+
+My first comparison made Adam look substantially worse than SGD, and I nearly reported that conclusion. I then noticed that the SGD runs had learning-rate decay while the Adam runs did not.
+
+Adding the missing control changed Adam’s dev NLL from 2.3230 to 2.1459, against SGD’s 2.1337. Most of the apparent gap disappeared. These runs did not establish which optimiser was best; they showed that my original comparison could not separate optimiser choice from the schedule.
+
+### An Activation Improvement That Did Not Hold Up
+
+I brought the learnable tanh/ReLU blend over from my micrograd experiments. At context length three, my first 500k-step comparison looked encouraging: dev NLL was 2.1251 for the blend against 2.1337 for tanh.
+
+I then checked three additional seeds. The direction of the difference varied, and the average dev loss favoured tanh: 2.1603 against 2.1648 for the blend. I stopped treating the first result as evidence of a consistent improvement.
+
+Those additional runs used 200k steps, so they did not directly replicate the original 500k-step comparison. My original use of the three-seed range as a universal “noise band” was also too strong. The current reports show individual differences and their standard error instead.
+
+The blend also had a smaller train/dev gap in those additional runs. Since its average dev loss was higher, that smaller gap was not evidence of better predictive performance.
 
 ## What I Implemented
+
+The experiment harness grew out of two notebook mistakes. A global parameter list allowed state to leak between runs, and my recorded configurations sometimes drifted from what the notebook had actually executed. I changed the original training function to rebuild parameters for every run and record the configuration used inside the function. The current shared module extends that approach with separate random-number streams and saved run records.
+
 
 | File | Role |
 | --- | --- |
@@ -47,6 +68,12 @@ Every run records an actual pre-training evaluation at step zero and full-dev ev
 The current real-data runs do not evaluate the test partition. The historical corpus has already been used in earlier experiments, so this should not be presented as an entirely new, historically unseen dataset.
 
 ## Current Findings: an Initialisation Pilot
+
+The initialisation question came from a result I could not explain. In the original single-seed experiments, extending the context from three to four characters improved the blend substantially, while tanh barely changed. At context four, the blend reached dev NLL 2.0877 against tanh’s 2.1356.
+
+That made me wonder whether the wider input was exposing a problem with the unscaled initialisation. If more tanh units started saturated, perhaps the blend was helping the model train under those conditions. This was a proposed explanation, not an established mechanism. It led to a concrete question: would the blend’s advantage shrink after changing the initialisation?
+
+The pilot below examines that question during early training.
 
 The included pilot fixes batch size 32, SGD learning rate 0.1, tenfold decay after 5,000 updates, evaluation every 1,000 updates, and a **10,000-update** budget. Each setting uses seeds 0, 1 and 2, matched for shared weights and minibatches. These are early-training results, not completed 200k/500k-step replications.
 
@@ -82,7 +109,7 @@ Elapsed time is specific to the recorded CPU environment. Compare common targets
 
 ## Changes from the Original Study
 
-The original study showed why controls matter: adding a missing decay schedule reduced the recorded Adam–SGD gap, and additional seeds weakened an apparent activation gain. The code and documentation now also correct the issues found during review:
+The original study showed why controls matter. The code and documentation now also correct the issues found during review:
 
 - Duplicate spellings are grouped before splitting.
 - Optional activation parameters cannot change the minibatch RNG sequence.
@@ -133,7 +160,9 @@ Run the ten configuration controls with a 500k main budget (the shorter baseline
 python experiments.py run --suite main --steps 500000 --seeds 0 --initialization unscaled --output results/local/main-500k
 ```
 
-Compare decay timing at a fixed 80k budget (40 runs, 3.2 million updates):
+The decay-timing experiment comes from the shape of the original learning curves: much of the improvement happened shortly after the learning rate dropped. That raised a practical question: could an earlier drop reach a comparable dev loss with fewer updates and less elapsed time?
+
+The following study compares decay after 25%, 50% and 75% of an 80k-update budget, together with a no-decay control, across ten seeds. It records when each run first reaches specified dev-loss targets. This experiment is implemented but has not yet been run.
 
 ```bash
 python experiments.py run --suite decay --steps 80000 --seeds 0 1 2 3 4 5 6 7 8 9 --eval-every 1000 --output results/local/decay-80k
